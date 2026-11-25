@@ -1,8 +1,12 @@
 let lastLat = null;
 let lastLng = null;
+let lastUpdateTime = null;
+
 let updateCount = 0;
+let stopTime = 0;
 
 navigator.geolocation.watchPosition(
+
     function (position) {
 
         updateCount++;
@@ -10,6 +14,8 @@ navigator.geolocation.watchPosition(
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         const accuracy = position.coords.accuracy;
+
+        const now = Date.now();
 
         document.getElementById("lat").textContent =
             "緯度：" + lat;
@@ -23,7 +29,15 @@ navigator.geolocation.watchPosition(
         document.getElementById("count").textContent =
             "更新回数：" + updateCount;
 
-        if (lastLat !== null && lastLng !== null) {
+        document.getElementById("time").textContent =
+            "更新時刻：" +
+            new Date().toLocaleTimeString();
+
+        if (
+            lastLat !== null &&
+            lastLng !== null &&
+            lastUpdateTime !== null
+        ) {
 
             const distance = getDistance(
                 lastLat,
@@ -37,41 +51,74 @@ navigator.geolocation.watchPosition(
                 distance.toFixed(2) +
                 "m";
 
-            console.log(
-                "更新",
-                updateCount,
-                "距離",
-                distance.toFixed(2)
-            );
+            const elapsedSeconds =
+                (now - lastUpdateTime) / 1000;
+
+            // 停止判定
+            if (distance < 5) {
+
+                stopTime += elapsedSeconds;
+
+                document.getElementById("stopTime").textContent =
+                    "停止時間：" +
+                    stopTime.toFixed(1) +
+                    "秒";
+
+                if (stopTime >= 3) {
+
+                    document.getElementById("status").textContent =
+                        "状態：停止中";
+
+                } else {
+
+                    document.getElementById("status").textContent =
+                        "状態：停止判定中";
+                }
+
+            } else {
+
+                stopTime = 0;
+
+                document.getElementById("stopTime").textContent =
+                    "停止時間：0秒";
+
+                document.getElementById("status").textContent =
+                    "状態：移動中";
+            }
         }
 
         lastLat = lat;
         lastLng = lng;
+        lastUpdateTime = now;
+
     },
 
     function (error) {
+
         console.error(error);
 
-        alert(
-            "位置情報エラー\n" +
-            error.message
-        );
+        document.getElementById("status").textContent =
+            "エラー：" + error.message;
     },
 
     {
         enableHighAccuracy: true,
         maximumAge: 0,
-        timeout: 10000
+        timeout: 5000
     }
 );
 
 
+// 2地点間の距離(m)
 function getDistance(lat1, lon1, lat2, lon2) {
 
     const R = 6371000;
 
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const dLat =
+        (lat2 - lat1) * Math.PI / 180;
+
+    const dLon =
+        (lon2 - lon1) * Math.PI / 180;
 
     const a =
         Math.sin(dLat / 2) *
