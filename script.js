@@ -5,6 +5,7 @@ let lastUpdateTime = null;
 let updateCount = 0;
 let stopTime = 0;
 
+// GPS監視開始
 navigator.geolocation.watchPosition(
 
     function (position) {
@@ -17,6 +18,7 @@ navigator.geolocation.watchPosition(
 
         const now = Date.now();
 
+        // 基本情報表示
         document.getElementById("lat").textContent =
             "緯度：" + lat;
 
@@ -33,6 +35,7 @@ navigator.geolocation.watchPosition(
             "更新時刻：" +
             new Date().toLocaleTimeString();
 
+        // 2回目以降
         if (
             lastLat !== null &&
             lastLng !== null &&
@@ -54,8 +57,19 @@ navigator.geolocation.watchPosition(
             const elapsedSeconds =
                 (now - lastUpdateTime) / 1000;
 
+            // GPS精度ベースの閾値
+            const stopThreshold =
+                Math.max(6, accuracy);
+
+            document.getElementById("debug").textContent =
+                "判定距離：" +
+                distance.toFixed(2) +
+                "m / 閾値：" +
+                stopThreshold.toFixed(2) +
+                "m";
+
             // 停止判定
-            if (distance < 5) {
+            if (distance < stopThreshold) {
 
                 stopTime += elapsedSeconds;
 
@@ -106,19 +120,27 @@ navigator.geolocation.watchPosition(
         maximumAge: 0,
         timeout: 5000
     }
+
 );
 
 
-// 2地点間の距離(m)
-function getDistance(lat1, lon1, lat2, lon2) {
+// 2地点間距離(m)
+function getDistance(
+    lat1,
+    lon1,
+    lat2,
+    lon2
+) {
 
     const R = 6371000;
 
     const dLat =
-        (lat2 - lat1) * Math.PI / 180;
+        (lat2 - lat1) *
+        Math.PI / 180;
 
     const dLon =
-        (lon2 - lon1) * Math.PI / 180;
+        (lon2 - lon1) *
+        Math.PI / 180;
 
     const a =
         Math.sin(dLat / 2) *
