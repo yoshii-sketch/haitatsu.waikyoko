@@ -4,34 +4,161 @@ let currentMarker = null;
 let routePoints = [];
 let routeLine = null;
 
+let stopMarkers = [];
+
 let lastLat = null;
 let lastLng = null;
 let lastUpdateTime = null;
 
 let updateCount = 0;
 let stopTime = 0;
+
+let tracking = false;
 let currentlyStopped = false;
 
 
-// GPS監視開始
+// =====================
+// 配達開始
+// =====================
+
+document
+.getElementById("startBtn")
+.addEventListener(
+    "click",
+    () => {
+
+        tracking = true;
+
+        stopTime = 0;
+
+        currentlyStopped = false;
+
+        document.getElementById(
+            "recordStatus"
+        ).textContent =
+        "記録状態：記録中";
+    }
+);
+
+
+// =====================
+// 配達終了
+// =====================
+
+document
+.getElementById("stopBtn")
+.addEventListener(
+    "click",
+    () => {
+
+        tracking = false;
+
+        stopTime = 0;
+
+        currentlyStopped = false;
+
+        document.getElementById(
+            "recordStatus"
+        ).textContent =
+        "記録状態：停止中";
+    }
+);
+
+
+// =====================
+// 履歴消去
+// =====================
+
+document
+.getElementById("clearBtn")
+.addEventListener(
+    "click",
+    () => {
+
+        // 青線削除
+        if (routeLine) {
+
+            map.removeLayer(
+                routeLine
+            );
+
+            routeLine = null;
+        }
+
+        // ルート履歴削除
+        routePoints = [];
+
+        // 赤丸削除
+        stopMarkers.forEach(
+            marker => {
+
+                map.removeLayer(
+                    marker
+                );
+            }
+        );
+
+        stopMarkers = [];
+
+        stopTime = 0;
+
+        currentlyStopped = false;
+
+        document.getElementById(
+            "stopTime"
+        ).textContent =
+        "停止時間：0秒";
+
+        document.getElementById(
+            "status"
+        ).textContent =
+        "状態：移動中";
+
+        document.getElementById(
+            "debug"
+        ).textContent =
+        "判定：";
+
+        document.getElementById(
+            "distance"
+        ).textContent =
+        "移動距離：";
+
+    }
+);
+
+
+// =====================
+// GPS監視
+// =====================
+
 navigator.geolocation.watchPosition(
 
-    function (position) {
+    function(position) {
+
+        const lat =
+            position.coords.latitude;
+
+        const lng =
+            position.coords.longitude;
+
+        const accuracy =
+            position.coords.accuracy;
+
+        const now =
+            Date.now();
 
         updateCount++;
 
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        const accuracy = position.coords.accuracy;
+        // -----------------
+        // 地図作成
+        // -----------------
 
-        const now = Date.now();
-
-        // --------------------
-        // 地図の初期化
-        // --------------------
         if (!map) {
 
-            map = L.map("map").setView(
+            map = L.map(
+                "map"
+            ).setView(
                 [lat, lng],
                 18
             );
@@ -39,14 +166,17 @@ navigator.geolocation.watchPosition(
             L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
-                    maxZoom: 19
+                    maxZoom: 19,
+                    attribution:
+                    "&copy; OpenStreetMap contributors"
                 }
             ).addTo(map);
         }
 
-        // --------------------
-        // 現在位置マーカー
-        // --------------------
+        // -----------------
+        // 現在地マーカー
+        // -----------------
+
         if (currentMarker) {
 
             currentMarker.setLatLng(
@@ -55,85 +185,123 @@ navigator.geolocation.watchPosition(
 
         } else {
 
-            currentMarker = L.marker(
-                [lat, lng]
-            ).addTo(map);
-
+            currentMarker =
+                L.marker(
+                    [lat, lng]
+                ).addTo(map);
         }
 
-        // --------------------
-        // 地図追従
-        // --------------------
-        map.panTo([lat, lng]);
+        map.panTo(
+            [lat, lng]
+        );
 
-        // --------------------
-        // ルート記録
-        // --------------------
-        routePoints.push([lat, lng]);
+        // -----------------
+        // 画面表示
+        // -----------------
 
-        if (routeLine) {
+        document.getElementById(
+            "lat"
+        ).textContent =
+        "緯度：" + lat;
 
-            routeLine.setLatLngs(
-                routePoints
+        document.getElementById(
+            "lng"
+        ).textContent =
+        "経度：" + lng;
+
+        document.getElementById(
+            "accuracy"
+        ).textContent =
+        "精度：" +
+        accuracy.toFixed(1) +
+        "m";
+
+        document.getElementById(
+            "count"
+        ).textContent =
+        "更新回数：" +
+        updateCount;
+
+        document.getElementById(
+            "time"
+        ).textContent =
+        "更新時刻：" +
+        new Date()
+            .toLocaleTimeString();
+
+        // -----------------
+        // 記録中のみ
+        // -----------------
+
+        if (tracking) {
+
+            routePoints.push(
+                [lat, lng]
             );
 
-        } else {
+            if (routeLine) {
 
-            routeLine = L.polyline(
-                routePoints,
-                {
-                    color: "blue",
-                    weight: 4
-                }
-            ).addTo(map);
+                routeLine.setLatLngs(
+                    routePoints
+                );
+
+            } else {
+
+                routeLine =
+                L.polyline(
+                    routePoints,
+                    {
+                        color:
+                        "blue",
+
+                        weight:
+                        4
+                    }
+                ).addTo(map);
+            }
 
         }
 
-        // --------------------
-        // 画面表示
-        // --------------------
-        document.getElementById("lat").textContent =
-            "緯度：" + lat;
-
-        document.getElementById("lng").textContent =
-            "経度：" + lng;
-
-        document.getElementById("accuracy").textContent =
-            "精度：" +
-            accuracy.toFixed(1) +
-            "m";
-
-        document.getElementById("count").textContent =
-            "更新回数：" +
-            updateCount;
-
-        document.getElementById("time").textContent =
-            "更新時刻：" +
-            new Date().toLocaleTimeString();
-
-        // --------------------
+        // -----------------
         // 停止判定
-        // --------------------
+        // -----------------
+
         if (
+
+            tracking &&
+
             lastLat !== null &&
+
             lastLng !== null &&
+
             lastUpdateTime !== null
+
         ) {
 
-            const distance = getDistance(
-                lastLat,
-                lastLng,
-                lat,
-                lng
-            );
+            const distance =
+                getDistance(
 
-            document.getElementById("distance").textContent =
-                "移動距離：" +
-                distance.toFixed(2) +
-                "m";
+                    lastLat,
+
+                    lastLng,
+
+                    lat,
+
+                    lng
+                );
+
+            document.getElementById(
+                "distance"
+            ).textContent =
+            "移動距離：" +
+            distance.toFixed(2) +
+            "m";
 
             const elapsedSeconds =
-                (now - lastUpdateTime) / 1000;
+                (
+                    now -
+                    lastUpdateTime
+                ) / 1000;
 
             const stopThreshold =
                 Math.max(
@@ -141,16 +309,25 @@ navigator.geolocation.watchPosition(
                     accuracy
                 );
 
-            document.getElementById("debug").textContent =
+            document.getElementById(
+                "debug"
+            ).textContent =
+
                 "距離：" +
+
                 distance.toFixed(2) +
+
                 "m / 閾値：" +
+
                 stopThreshold.toFixed(2) +
+
                 "m";
 
             if (
+
                 distance <
                 stopThreshold
+
             ) {
 
                 stopTime +=
@@ -159,8 +336,11 @@ navigator.geolocation.watchPosition(
                 document.getElementById(
                     "stopTime"
                 ).textContent =
+
                     "停止時間：" +
+
                     stopTime.toFixed(1) +
+
                     "秒";
 
                 if (
@@ -170,32 +350,35 @@ navigator.geolocation.watchPosition(
                     document.getElementById(
                         "status"
                     ).textContent =
-                        "状態：停止中";
+                    "状態：停止中";
 
-                    // 停止地点を1回だけ記録
                     if (
                         !currentlyStopped
                     ) {
 
-                        currentlyStopped =
-                            true;
+                        currentlyStopped = true;
 
-                        L.circleMarker(
-                            [lat, lng],
-                            {
-                                radius: 8,
-                                color: "red",
-                                fillColor:
-                                    "red",
-                                fillOpacity:
-                                    0.8
-                            }
-                        ).addTo(map);
+                        const stopMarker =
 
-                        console.log(
-                            "停止地点記録",
-                            lat,
-                            lng
+                            L.circleMarker(
+                                [lat, lng],
+                                {
+                                    radius: 8,
+
+                                    color:
+                                        "red",
+
+                                    fillColor:
+                                        "red",
+
+                                    fillOpacity:
+                                        0.8
+                                }
+                            )
+                            .addTo(map);
+
+                        stopMarkers.push(
+                            stopMarker
                         );
                     }
 
@@ -204,43 +387,45 @@ navigator.geolocation.watchPosition(
                     document.getElementById(
                         "status"
                     ).textContent =
-                        "状態：停止判定中";
+                    "状態：停止判定中";
                 }
 
             } else {
 
                 stopTime = 0;
 
-                currentlyStopped =
-                    false;
+                currentlyStopped = false;
 
                 document.getElementById(
                     "stopTime"
                 ).textContent =
-                    "停止時間：0秒";
+                "停止時間：0秒";
 
                 document.getElementById(
                     "status"
                 ).textContent =
-                    "状態：移動中";
+                "状態：移動中";
             }
         }
 
         lastLat = lat;
+
         lastLng = lng;
+
         lastUpdateTime = now;
 
     },
 
-    function (error) {
+    function(error) {
 
         console.error(error);
 
         document.getElementById(
             "status"
         ).textContent =
-            "エラー：" +
-            error.message;
+        "エラー：" +
+        error.message;
+
     },
 
     {
@@ -252,50 +437,90 @@ navigator.geolocation.watchPosition(
 );
 
 
-// 2地点間距離(m)
+// =====================
+// 2点間距離計算
+// =====================
+
 function getDistance(
+
     lat1,
     lon1,
+
     lat2,
     lon2
+
 ) {
 
     const R = 6371000;
 
     const dLat =
-        (lat2 - lat1) *
-        Math.PI / 180;
+
+        (lat2 - lat1)
+        *
+        Math.PI
+        /
+        180;
 
     const dLon =
-        (lon2 - lon1) *
-        Math.PI / 180;
+
+        (lon2 - lon1)
+        *
+        Math.PI
+        /
+        180;
 
     const a =
-        Math.sin(dLat / 2) *
-        Math.sin(dLat / 2) +
+
+        Math.sin(
+            dLat / 2
+        )
+
+        *
+
+        Math.sin(
+            dLat / 2
+        )
+
+        +
 
         Math.cos(
             lat1 *
             Math.PI /
             180
-        ) *
+        )
+
+        *
 
         Math.cos(
             lat2 *
             Math.PI /
             180
-        ) *
+        )
 
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+        *
+
+        Math.sin(
+            dLon / 2
+        )
+
+        *
+
+        Math.sin(
+            dLon / 2
+        );
 
     const c =
+
         2 *
+
         Math.atan2(
+
             Math.sqrt(a),
+
             Math.sqrt(
                 1 - a
             )
+
         );
 
     return R * c;
